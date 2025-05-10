@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from uuid import uuid4
 
 from app.domain.dto.user import User
@@ -12,7 +12,12 @@ class AuthService:
     def __init__(self, user_repo: IUserRepository):
         self.user_repo = user_repo
 
-    async def register_user(self, email: str, password: str) -> User:
+    async def register_user(
+            self,
+            email: str,
+            password: str,
+            role: Role,
+    ) -> User:
         existing = await self.user_repo.get_by_email(email)
         if existing:
             raise ValueError("User already exists")
@@ -21,9 +26,9 @@ class AuthService:
             id=uuid4(),
             email=email,
             hashed_password=hash_password(password),
-            role=Role.on_moderation.value,
+            role=role,
             is_active=True,
-            created_at=datetime.utcnow()
+            created_at=datetime.now(timezone.utc),
         )
         await self.user_repo.save(user)
         return user

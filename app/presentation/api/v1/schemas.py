@@ -12,7 +12,7 @@ class BaseInput(BaseModel):
 
 
 class RegisterInput(BaseInput):
-    ...
+    role: Role
 
 
 class LoginInput(BaseInput):
