@@ -1,4 +1,5 @@
-from datetime import datetime, timedelta
+import logging
+from datetime import datetime, timedelta, timezone
 from uuid import UUID
 
 import jwt
@@ -10,19 +11,24 @@ def create_jwt_token(user_id: UUID, role: str) -> str:
     payload = {
         "sub": str(user_id),
         "role": role,
-        "exp": datetime.utcnow() + timedelta(minutes=jwt_settings.exp_minutes),
-        "iat": datetime.utcnow(),
+        "exp": datetime.now(
+            tz=timezone.utc
+        ) + timedelta(
+            minutes=jwt_settings.exp_minutes
+        ),
+        "iat": datetime.now(tz=timezone.utc),
     }
     return jwt.encode(
         payload,
-        jwt_settings.secret,
+        jwt_settings.private_key,
         algorithm=jwt_settings.algorithm,
     )
 
 
 def decode_jwt_token(token: str) -> dict:
+    logging.info(jwt_settings.public_key)
     return jwt.decode(
         token,
-        jwt_settings.secret,
+        jwt_settings.public_key,
         algorithms=[jwt_settings.algorithm],
     )

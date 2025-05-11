@@ -9,8 +9,13 @@ from app.utils.password import hash_password, verify_password
 
 
 class AuthService:
-    def __init__(self, user_repo: IUserRepository):
+    def __init__(
+            self,
+            user_repo: IUserRepository,
+            producer=None,
+    ):
         self.user_repo = user_repo
+        self.producer = producer
 
     async def register_user(
             self,
@@ -31,6 +36,13 @@ class AuthService:
             created_at=datetime.now(timezone.utc),
         )
         await self.user_repo.save(user)
+
+        await self.producer.send_user_created_event(
+            user_id=str(user.id),
+            email=user.email,
+            role=user.role.value,
+        )
+
         return user
 
     async def login_user(self, email: str, password: str) -> str:

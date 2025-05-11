@@ -2,15 +2,21 @@ from fastapi import Depends, HTTPException
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette import status
+from starlette.requests import Request
 
 from app.domain.dto.user import User
 from app.domain.enums.role import Role
+from app.infrastructure.bus.kafka.producer import KafkaEventProducer
 from app.infrastructure.db.repository import SQLAlchemyUserRepository
 from app.infrastructure.db.session import get_session
 from app.infrastructure.security import decode_jwt_token
 from app.service.auth import AuthService
 from app.service.interfaces import IUserRepository
 from app.service.user import UserService
+
+
+def get_kafka_producer(request: Request) -> KafkaEventProducer:
+    return request.app.state.kafka_producer
 
 
 def get_user_repo(session: AsyncSession = Depends(get_session)):
@@ -21,8 +27,11 @@ def get_user_service(user_repo: IUserRepository = Depends(get_user_repo)):
     return UserService(user_repo=user_repo)
 
 
-def get_auth_service(user_repo: IUserRepository = Depends(get_user_repo)):
-    return AuthService(user_repo=user_repo)
+def get_auth_service(
+        user_repo: IUserRepository = Depends(get_user_repo),
+        producer=Depends(get_kafka_producer),
+):
+    return AuthService(user_repo=user_repo, producer=producer)
 
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
