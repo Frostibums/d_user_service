@@ -28,4 +28,4 @@ class SQLAlchemyUserRepository:
     async def save(self, user: User) -> None:
         orm = UserORM.from_domain(user)
         self.session.add(orm)
-        # await self.session.commit()
+        await self.session.commit()

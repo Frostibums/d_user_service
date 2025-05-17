@@ -26,7 +26,6 @@ def create_jwt_token(user_id: UUID, role: str) -> str:
 
 
 def decode_jwt_token(token: str) -> dict:
-    logging.info(jwt_settings.public_key)
     return jwt.decode(
         token,
         jwt_settings.public_key,
