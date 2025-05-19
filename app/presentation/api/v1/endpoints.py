@@ -5,10 +5,11 @@ from fastapi.security import OAuth2PasswordRequestForm
 from starlette import status
 from starlette.responses import Response
 
+from app.domain.dto.user import User
 from app.infrastructure.security import decode_jwt_token
 from app.presentation.api.v1.dependencies import (
     get_auth_service,
-    get_current_admin_user,
+    get_current_admin_user, get_current_user,
 )
 from app.presentation.api.v1.interfaces import IAuthService
 from app.presentation.api.v1.schemas import (
@@ -18,6 +19,13 @@ from app.presentation.api.v1.schemas import (
 )
 
 router = APIRouter()
+
+
+@router.get("/me", response_model=UserOutput)
+async def get_current_user(
+        user: User = Depends(get_current_user),
+):
+    return user
 
 
 @router.post(
