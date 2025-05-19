@@ -1,10 +1,10 @@
+from uuid import UUID
+
 from fastapi import Depends, HTTPException
-from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette import status
 from starlette.requests import Request
 
-from app.domain.dto.user import User
 from app.domain.enums.role import Role
 from app.infrastructure.bus.kafka.producer import KafkaEventProducer
 from app.infrastructure.db.repository import SQLAlchemyUserRepository
@@ -34,34 +34,42 @@ def get_auth_service(
     return AuthService(user_repo=user_repo, producer=producer)
 
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
-
-
-async def get_current_user(
-        token: str = Depends(oauth2_scheme),
-        user_service=Depends(get_user_service),
-) -> User:
-    try:
-        payload = decode_jwt_token(token)
-    except Exception:
+def get_jwt_payload(request: Request) -> dict:
+    token = request.cookies.get("access_token")
+    if not token:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid or expired token",
-            headers={"WWW-Authenticate": "Bearer"},
+            detail="Missing access token",
         )
-    current_user = await user_service.get_by_id(payload.get("sub"))
-    if not current_user:
+
+    if token.startswith("Bearer "):
+        token = token[7:]
+    try:
+        return decode_jwt_token(token)
+    except Exception as e:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="User not found",
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=f"Invalid or expired token{e}",
         )
-    return current_user
 
 
-async def get_current_admin_user(user: User = Depends(get_current_user)):
-    if user.role == Role.admin.value:
-        return user
-    raise HTTPException(
-        status_code=status.HTTP_403_FORBIDDEN,
-        detail="Insufficient privileges",
-    )
+def get_current_teacher_id(payload: dict = Depends(get_jwt_payload)) -> UUID:
+    if payload.get("role") not in (Role.teacher.value, Role.admin.value):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only for stuff"
+        )
+    return UUID(payload["sub"])
+
+
+def get_current_user_id(payload: dict = Depends(get_jwt_payload)) -> UUID:
+    return UUID(payload["sub"])
+
+
+def get_current_admin_id(payload: dict = Depends(get_jwt_payload)) -> UUID:
+    if payload.get("role") != Role.admin.value:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only for stuff"
+        )
+    return UUID(payload["sub"])
